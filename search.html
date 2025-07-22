@@ -83,10 +83,17 @@
             <h2 class="search__results--title">Search Results for:</h2>
           </div>
           <div class="search__results--empty">No results found.</div>
-          <div class="movie__links">
+          <div class="search__controls">
             <div class="search__status">
               <p>Searching for: <span class="searching__term">""</span></p>
             </div>
+            <select id="filter">
+              <option value disabled selected>Sort</option>
+              <option value="LOW_TO_HIGH">Year, Oldest to Newest</option>
+              <option value="HIGH_TO_LOW">Year, Newest to Oldest</option>
+            </select>
+          </div>
+          <div class="movie__links">
             <div class="search__loading">
               <i class="search__loading--spinner fa-solid fa-spinner"></i>
             </div>

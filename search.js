@@ -6,16 +6,28 @@ const titleEl = document.querySelector(".search__results--title");
 const emptyEl = document.querySelector(".search__results--empty");
 const loadingEl = document.querySelector(".search__loading");
 const spinnerEl = document.querySelector(".search__loading--spinner");
-const statusEl = document.querySelector(".search__status");
 const termEl = document.querySelector(".searching__term");
+const statusEl = document.querySelector(".search__status");
+const filterDropdown = document.getElementById("filter");
 
-/* ===== PAGE LOAD + SEARCH INIT ===== */
+let latestMovies = [];
+let selectedSort = "default";
+
+/* ===== PAGE LOAD ===== */
 window.addEventListener("load", () => {
   document.body.classList.remove("menu--open");
   document.body.classList.add("loaded");
 
-  const title = new URLSearchParams(window.location.search).get("title");
-  title ? getMovies(title) : console.log("No title found in URL.");
+  const params = new URLSearchParams(window.location.search);
+  const title = params.get("title");
+  const sort = params.get("sort");
+
+  if (sort) {
+    selectedSort = sort;
+    filterDropdown.value = sort;
+  }
+
+  if (title) getMovies(title);
 });
 
 /* ===== BURGER MENU ===== */
@@ -35,85 +47,119 @@ function delayedNav(e, url) {
 
 /* ===== SEARCH EVENTS ===== */
 searchBtn.addEventListener("click", handleSearch);
-searchInput.addEventListener("keydown", (e) => e.key === "Enter" && handleSearch());
+searchInput.addEventListener(
+  "keydown",
+  (e) => e.key === "Enter" && handleSearch()
+);
 
 function handleSearch() {
   const userInput = searchInput.value.trim();
+  const sortValue = filterDropdown.value;
+
   if (userInput) {
-    window.location.href = `search.html?title=${encodeURIComponent(userInput)}`;
+    const query = `search.html?title=${encodeURIComponent(
+      userInput
+    )}&sort=${encodeURIComponent(sortValue)}`;
+    window.location.href = query;
   }
 }
 
+/* ===== FILTER EVENT ===== */
+filterDropdown.addEventListener("change", (e) => {
+  selectedSort = e.target.value;
+  if (latestMovies.length) {
+    filterMovies(latestMovies);
+  }
+});
+
 /* ===== FETCH MOVIES ===== */
 async function getMovies(title) {
-  // Show loading state
-  statusEl.classList.add("visible");
   termEl.textContent = `"${title}"`;
+  statusEl.classList.add("visible");
   loadingEl.style.opacity = "1";
   spinnerEl.style.display = "block";
 
   try {
-    const res = await fetch(`http://www.omdbapi.com/?apikey=21fba792&s=${encodeURIComponent(title)}`);
+    const res = await fetch(
+      `http://www.omdbapi.com/?apikey=21fba792&s=${encodeURIComponent(title)}`
+    );
     const data = await res.json();
 
     setTimeout(() => {
-      // Hide loading
       loadingEl.style.opacity = "0";
-      statusEl.classList.remove("visible");
       spinnerEl.style.display = "none";
 
-      // Handle results
       if (data.Response === "True") {
-        const movies = data.Search.slice(0, 6);
-        displayMovies(movies);
-        titleEl.textContent = `${movies.length} result${movies.length !== 1 ? "s" : ""} for: "${title}"`;
+        latestMovies = data.Search.slice(0, 6);
+        filterMovies(latestMovies); // uses selectedSort
+        titleEl.textContent = `${latestMovies.length} result${
+          latestMovies.length !== 1 ? "s" : ""
+        } for: "${title}"`;
         titleEl.classList.add("visible");
         emptyEl.classList.remove("visible");
+        statusEl.classList.remove("visible");
       } else {
-        // No results found
         movieLinks.innerHTML = "";
         titleEl.textContent = `Search results for: "${title}"`;
         titleEl.classList.add("visible");
         emptyEl.classList.add("visible");
+        statusEl.classList.remove("visible");
       }
     }, 1500);
   } catch (err) {
     console.error("Error fetching movies:", err);
     loadingEl.style.opacity = "0";
-    statusEl.classList.remove("visible");
     spinnerEl.style.display = "none";
   }
 }
 
-/* ===== RENDER MOVIE CARDS ===== */
-function displayMovies(movies) {
-  movieLinks.innerHTML = "";
+/* ===== FILTER & DISPLAY ===== */
+function filterMovies(movies) {
+  const sorted = [...movies];
 
-  movies.forEach(({ Title, Year, imdbID, Poster }) => {
-    const hasPoster = Poster !== "N/A";
-    movieLinks.innerHTML += `
+  if (selectedSort === "LOW_TO_HIGH") {
+    sorted.sort((a, b) => parseInt(a.Year) - parseInt(b.Year));
+  } else if (selectedSort === "HIGH_TO_LOW") {
+    sorted.sort((a, b) => parseInt(b.Year) - parseInt(a.Year));
+  }
+
+  displayMovies(sorted);
+}
+
+function displayMovies(movies) {
+  movieLinks.innerHTML = movies
+    .map(({ Title, Year, imdbID, Poster }) => {
+      const hasPoster = Poster !== "N/A";
+      return `
       <div class="movie">
         <div class="movie__info">
-          ${hasPoster
-            ? `<img src="${Poster}" class="movie__poster" alt="${Title} Poster"
+          ${
+            hasPoster
+              ? `<img src="${Poster}" class="movie__poster" alt="${Title} Poster"
                 onerror="this.outerHTML='<div class=\\'movie__poster movie__poster--missing\\'>No Poster Available</div>'"/>`
-            : `<div class="movie__poster movie__poster--missing">No Poster Available</div>`}
-          ${hasPoster
-            ? `<a href="${Poster}" target="_blank" class="modal__movie" alt="${Title} Poster">
+              : `<div class="movie__poster movie__poster--missing">No Poster Available</div>`
+          }
+          ${
+            hasPoster
+              ? `<a href="${Poster}" target="_blank" class="modal__movie" alt="${Title} Poster">
                  <span class="movie__overlay-text">🖼️ Get Poster</span>
                </a>`
-            : ""}
+              : ""
+          }
         </div>
         <div class="movie__description">
           <p class="movie__title">🎬 ${Title}</p>
           <p class="movie__year">📆 ${Year}</p>
-          ${imdbID
-            ? `<a class="movie__imdb" href="https://www.imdb.com/title/${imdbID}" target="_blank">
-                 🔗 <span class="movie__imdb--text">IMDb</span>
-               </a>`
-            : `<span class="movie__imdb movie__imdb--disabled">🚫 No IMDb link</span>`}
+          ${
+            imdbID
+              ? `<a class="movie__imdb" href="https://www.imdb.com/title/${imdbID}" target="_blank">
+                   🔗 <span class="movie__imdb--text">IMDb</span>
+                 </a>`
+              : `<span class="movie__imdb movie__imdb--disabled">🚫 No IMDb link</span>`
+          }
         </div>
       </div>
     `;
-  });
+    })
+    .join("");
 }
