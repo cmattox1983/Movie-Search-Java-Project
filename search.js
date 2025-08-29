@@ -81,7 +81,7 @@ async function getMovies(title) {
 
   try {
     const res = await fetch(
-      `http://www.omdbapi.com/?apikey=21fba792&s=${encodeURIComponent(title)}`
+      `https://www.omdbapi.com/?apikey=21fba792&s=${encodeURIComponent(title)}`
     );
     const data = await res.json();
 
@@ -163,3 +163,4 @@ function displayMovies(movies) {
     })
     .join("");
 }
+
